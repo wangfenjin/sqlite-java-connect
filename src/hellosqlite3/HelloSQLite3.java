@@ -8,6 +8,7 @@
 package hellosqlite3;
  
 import java.sql.*;
+import org.sqlite.SQLiteConfig;
 
 public class HelloSQLite3 {
      /**
@@ -20,21 +21,36 @@ public class HelloSQLite3 {
             // db parameters (assumes movies.db is in the same directory)
             String url = "jdbc:sqlite:movies.db";
             // create a connection to the database
-            conn = DriverManager.getConnection(url);
+            SQLiteConfig config = new SQLiteConfig();
+            config.enableLoadExtension(true);
+            conn = DriverManager.getConnection(url, config.toProperties());
 
             System.out.println("Connection to SQLite has been established.");
 
             // Ensure we can query the actors table
             stmt = conn.createStatement();
-            ResultSet rs = stmt.executeQuery("SELECT * FROM ACTORS LIMIT 1;");
 
+            try {
+                stmt.execute("SELECT load_extension('./lib/libsimple-osx-x64/libsimple', 'sqlite3_simple_init')");
+                stmt.execute("SELECT jieba_dict('./lib/libsimple-osx-x64/dict')");
+            } catch (Exception e) {
+                System.out.println("Unable to load libsimple.so: " + e.getMessage());
+            }
+
+
+            ResultSet rs = stmt.executeQuery("SELECT jieba_query('我是中国人民的儿子，我深情地爱着我的祖国和人民') as query;");
             while ( rs.next() ) {
+                String query = rs.getString("query");
+                System.out.println(String.format("jieba_query: %s", query));
+            }
+            rs.close();  
 
+
+            rs = stmt.executeQuery("SELECT * FROM ACTORS LIMIT 1;");
+            while ( rs.next() ) {
                 String  name = rs.getString("name");
-
                 System.out.println(String.format("Found %s", name));
             }
-            
             rs.close();  
         } catch (SQLException e) {
             System.out.println(e.getMessage());
